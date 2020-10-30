@@ -42,10 +42,6 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/LaserScan.h>
 
-#include <float.h>
-
-
-
 // TF
 #include <tf/transform_listener.h>
 #include "tf/message_filter.h"
@@ -54,45 +50,24 @@
 //Filters
 #include "filters/filter_chain.h"
 
-/** @b ScanShadowsFilter is a simple node that filters shadow points in a laser scan line and publishes the results in a cloud.
- */
 class CloudToCloudFilterChain
 {
 public:
     ros::NodeHandle nh;
-    ros::NodeHandle private_nh;
-
     filters::FilterChain<sensor_msgs::PointCloud2> cloud_filter_chain_;
-    ros::Publisher cloud_pub_;
-
-    std::string target_frame_;
-
     tf::TransformListener tf_;
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
     tf::MessageFilter<sensor_msgs::PointCloud2> filter_;
 
-
-
     ////////////////////////////////////////////////////////////////////////////////
-    CloudToCloudFilterChain () : private_nh("~"), filter_(tf_, "", 50),
+    CloudToCloudFilterChain () : filter_(tf_, "", 50),
                                 cloud_filter_chain_("sensor_msgs::PointCloud2")
     {
-        private_nh.param("target_frame", target_frame_, std::string ("base_link"));
-
-
-
-        filter_.setTargetFrame(target_frame_);
         filter_.registerCallback(boost::bind(&CloudToCloudFilterChain::scanCallback, this, _1));
         sub_.subscribe(nh, "pointcloud", 50);
         filter_.connectInput(sub_);
-
-        //cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2> ("/cloud_filtered", 10);
-        cloud_filter_chain_.configure("cloud_filter_chain", private_nh);
+        cloud_filter_chain_.configure("cloud_filter_chain", nh);
     }
-
-    // We use a deprecation warning on a timer to avoid warnings getting lost in the noise
-
-
 
     ////////////////////////////////////////////////////////////////////////////////
     void
@@ -100,22 +75,15 @@ public:
     {
         sensor_msgs::PointCloud2 filtered_cloud;
         cloud_filter_chain_.update (*cloud_msg, filtered_cloud);
-        //cloud_pub_.publish(filtered_cloud);
     }
-
 } ;
-
-
 
 int
 main (int argc, char** argv)
 {
     ros::init (argc, argv, "cloud_to_cloud_filter_chain");
     ros::NodeHandle nh;
-
     CloudToCloudFilterChain f;
-
     ros::spin();
-
     return (0);
 }
